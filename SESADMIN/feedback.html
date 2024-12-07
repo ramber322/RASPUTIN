@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <title>Event Feedback</title>
+    <style>
+        .dropdown {
+            display: none;
+        }
+    </style>
+     <script>
+        // Check if the user is logged in by looking for a token in localStorage
+        const token = localStorage.getItem("token");
+        
+        if (!token) {
+            // Redirect to login page if no token is found
+            window.location.href = "login.html";
+        }
+    </script>
+</head>
+
+<body class="bg-gray-100">
+    <!-- Header -->
+    <header class="bg-black text-white py-4 relative">
+        <div class="container mx-auto px-4 flex items-center justify-between">
+            <a href = "/SESADMIN/dashboard.html">
+            <img style = "width: 40px; height: 40xp; " src = "https://www.spc.edu.ph/wp-content/uploads/2023/05/spc-logo-footer-1.png">
+            </a>
+            <nav class="space-x-4 ml-auto">
+                <a href="/SESADMIN/addevent.html" class="text-white hover:underline">Add Event</a>
+                <a href="/SESADMIN/feedback.html" class="text-white hover:underline">Feedback</a>
+            </nav>
+            <div class="relative ml-4">
+                <button id="dropdownButton" class="focus:outline-none">
+                    <div class="w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-md">
+                        <span class="text-blue-600 font-bold">⚙️</span>
+                    </div>
+                </button>
+                <div id="dropdown" class="absolute right-0 mt-2 w-40 bg-white rounded-lg shadow-lg z-10 hidden">
+                    <button id="logoutButton" class="block w-full text-left px-4 py-2 text-gray-800 hover:bg-gray-200">Logout</button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="container mx-auto mt-8 px-4">
+        <!-- Page Title -->
+        <h1 class="text-3xl font-bold text-gray-900 mb-6">Event Feedback</h1>
+
+        <!-- Feedback Overview Section -->
+        <section class="bg-white p-6 rounded-lg shadow-lg">
+            <h2 class="text-2xl font-semibold text-gray-800 mb-4">Event Feedback Overview</h2>
+
+
+<!-- Event Selection Dropdown -->
+<div class="mb-6">
+    <select id="eventSelect" class="mt-2 block w-full border-gray-300 rounded-lg" onchange="loadEventFeedback()">
+        <!-- Dynamically populated with events -->
+    </select>
+</div>
+
+
+            <!-- Feedback List -->
+            <div class="space-y-4" id="feedbackList">
+                <!-- Feedback entries will be populated here -->
+            </div>
+        </section>
+
+      
+    </main>
+
+   
+
+    <script>
+    // Fetch events for the admin to populate the dropdown
+    async function loadEvents() {
+    try {
+        const response = await fetch('http://127.0.0.1:8000/api/events', {
+            headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+        });
+
+        if (!response.ok) {
+            throw new Error('API request failed with status ' + response.status);
+        }
+
+        const data = await response.json();
+
+        // Check if 'events' is an array before using .forEach
+        if (Array.isArray(data.events)) {
+            const eventSelect = document.getElementById('eventSelect');
+            eventSelect.innerHTML = ''; // Clear existing options
+
+            // Add the "Select an Event" option (placeholder)
+            const placeholderOption = document.createElement('option');
+            placeholderOption.value = '';
+            placeholderOption.textContent = 'Select an Event';
+            eventSelect.appendChild(placeholderOption);
+
+            // Add options for each event
+            data.events.forEach(event => {
+                const option = document.createElement('option');
+                option.value = event.id;
+                option.textContent = `${event.title} - ${event.event_date}`;
+                eventSelect.appendChild(option);
+            });
+        } else {
+            console.error("Expected an array but got:", data.events);
+        }
+    } catch (error) {
+        console.error("Error loading events:", error);
+    }
+}
+
+
+    // Fetch and display feedback for the selected event
+    async function loadEventFeedback() {
+        const eventId = document.getElementById('eventSelect').value;
+        if (!eventId) return;
+
+        try {
+            const response = await fetch(`http://127.0.0.1:8000/api/events/${eventId}/feedback`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+
+            if (!response.ok) {
+                throw new Error('API request failed with status ' + response.status);
+            }
+
+            const data = await response.json();
+
+            // Check if 'feedback' is an array before using .forEach
+            if (Array.isArray(data.feedback)) {
+                const feedbackList = document.getElementById('feedbackList');
+                feedbackList.innerHTML = ''; // Clear existing feedback entries
+
+                // Display each feedback
+                data.feedback.forEach(feedback => {
+                    const feedbackItem = document.createElement('div');
+                    feedbackItem.className = 'bg-gray-50 p-4 rounded-lg shadow-sm';
+                    feedbackItem.innerHTML = `
+                        <div class="flex justify-between items-center mb-2">
+                            <span class="font-semibold text-gray-700">Student: ${feedback.student_name}</span>
+                            <span class="text-yellow-500">${'⭐'.repeat(feedback.rating)}</span>
+                        </div>
+                        <p class="text-gray-600">${feedback.comment}</p>
+                    `;
+                    feedbackList.appendChild(feedbackItem);
+                });
+            } else {
+                console.error("Expected an array but got:", data.feedback);
+            }
+        } catch (error) {
+            console.error("Error loading feedback:", error);
+        }
+    }
+
+    // Load events when the page loads
+    loadEvents();
+</script>
+
+<script>
+    // Script for Dropdown / Logout API
+   // Toggle Dropdown Menu visibility
+   const dropdownButton = document.getElementById("dropdownButton");
+   const dropdown = document.getElementById("dropdown");
+
+   dropdownButton.addEventListener("click", function() {
+       // Toggle visibility of the dropdown menu
+       dropdown.classList.toggle("hidden");
+   });
+
+   // Logout functionality
+   const logoutButton = document.getElementById("logoutButton");
+   logoutButton.addEventListener("click", function() {
+       const token = localStorage.getItem("token");
+
+       fetch("http://127.0.0.1:8000/api/logout", {
+           method: "POST",
+           headers: {
+               "Authorization": `Bearer ${token}`,
+               "Content-Type": "application/json",
+           },
+       })
+       .then(response => response.json())
+       .then(data => {
+           localStorage.removeItem("token");
+           alert("Logged out successfully");
+           window.location.href = "login.html";
+       })
+       .catch(error => console.error("Error:", error));
+   });
+</script>
+</body>
+
+</html>

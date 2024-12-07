@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <title>Activity Log</title>
+    <script>
+        // Check if the user is logged in by looking for a token in localStorage
+        const token = localStorage.getItem("token");
+        
+        if (!token) {
+            // Redirect to login page if no token is found
+            window.location.href = "login.html";
+        }
+    </script>
+</head>
+
+<body class="bg-gray-100">
+    <!-- Header -->
+    <header class="bg-black text-white py-4">
+        <div class="container mx-auto px-4 flex items-center justify-between">
+            <a href="/SESUSER/dashboard.html">
+            <img style="width: 40px; height: 40px;" src="https://www.spc.edu.ph/wp-content/uploads/2023/05/spc-logo-footer-1.png" alt="Logo">
+            </a>
+            <nav class="space-x-4 ml-auto">
+                <a href="/SESUSER/dashboard.html" class="text-white hover:underline">Dashboard</a>
+                <a href="/SESUSER/viewcalendar.html" class="text-white hover:underline">View Calendar</a>
+            </nav>
+            <div class="relative ml-4">
+                <button id="dropdownButton" class="focus:outline-none">
+                    <div class="w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-md">
+                        <span class="text-blue-600 font-bold">⚙️</span>
+                    </div>
+                </button>
+                <div id="dropdown" class="absolute right-0 mt-2 w-40 bg-white rounded-lg shadow-lg z-10 hidden">
+                    <button id="activityLogButton" class="block w-full text-left px-4 py-2 text-gray-800 hover:bg-gray-200">Activity Log</button>
+                    <button id="logoutButton" class="block w-full text-left px-4 py-2 text-gray-800 hover:bg-gray-200">Logout</button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="container mx-auto mt-8 px-4">
+        <!-- Page Title -->
+        <h1 class="text-3xl font-bold text-gray-900 mb-6">Activity Log</h1>
+
+        <!-- Registered Events Section -->
+        <section class="bg-white p-6 rounded-lg shadow-lg" id="eventList">
+            <!-- Events will be dynamically loaded here -->
+        </section>
+    </main>
+
+    
+    <script>
+        // Toggle Dropdown Menu visibility
+        const dropdownButton = document.getElementById("dropdownButton");
+        const dropdown = document.getElementById("dropdown");
+
+        dropdownButton.addEventListener("click", function() {
+            dropdown.classList.toggle("hidden");
+        });
+
+         // Script for Activity Log
+         const activityLogButton = document.getElementById("activityLogButton");
+        activityLogButton.addEventListener("click", function() {
+            window.location.href = "/SESUSER/activitylog.html";
+        });
+
+        // Logout functionality
+        const logoutButton = document.getElementById("logoutButton");
+        logoutButton.addEventListener("click", function() {
+            const token = localStorage.getItem("token");
+
+            fetch("http://127.0.0.1:8000/api/logout", {
+                method: "POST",
+                headers: {
+                    "Authorization": `Bearer ${token}`,
+                    "Content-Type": "application/json",
+                },
+            })
+            .then(response => response.json())
+            .then(data => {
+                localStorage.removeItem("token");
+                alert("Logged out successfully");
+                window.location.href = "login.html";
+            })
+            .catch(error => console.error("Error:", error));
+        });
+    </script>
+
+
+    <script>
+        // Fetch registered events for the logged-in user
+        async function loadUserEvents() {
+            try {
+                const response = await fetch('http://127.0.0.1:8000/api/getRegisteredEvents', { 
+                    headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+                });
+
+                if (!response.ok) {
+                    throw new Error('API request failed with status ' + response.status);
+                }
+
+                const data = await response.json();
+
+                // Debugging: log the data to inspect its structure
+                console.log(data);
+
+                // Check if 'events' is an array before using .forEach
+                if (Array.isArray(data.events)) {
+                    const eventList = document.getElementById('eventList');
+                    eventList.innerHTML = ''; // Clear any existing content
+
+                    // Display each event in the event list
+                    data.events.forEach(event => {
+                        const eventItem = document.createElement('div');
+                        eventItem.className = 'bg-gray-50 p-4 rounded-lg shadow-sm mb-6';
+                        eventItem.innerHTML = `
+                            <div class="flex justify-between items-center mb-2">
+                                <div>
+                                    <span class="font-semibold text-gray-700">Event: ${event.title}</span>
+                                    <span class="text-sm text-gray-600 block">Date: ${event.event_date}</span>
+                                </div>
+                                <div class="text-sm ${event.status === 'Attended' ? 'text-blue-600' : 'text-yellow-600'}">
+                                    Status: ${event.status}
+                                </div>
+                            </div>
+                            <p class="text-gray-600 mb-4">${event.description}</p>
+
+                            <!-- Toggle Feedback Button -->
+                            <button onclick="toggleFeedbackForm(this)" class="bg-gray-200 text-gray-700 py-1 px-2 rounded-md hover:bg-gray-300 focus:outline-none">
+                                Leave a Feedback
+                            </button>
+
+                            <!-- Rating and Feedback Form (Initially Hidden) -->
+                            <div class="feedback-form mt-4 space-y-2 hidden">
+                                <label class="block text-gray-700 font-medium">Your Rating:</label>
+                                <div class="flex space-x-1 text-yellow-500">
+                                    <button class="star hover:text-yellow-600" data-rating="1">★</button>
+                                    <button class="star hover:text-yellow-600" data-rating="2">★</button>
+                                    <button class="star hover:text-yellow-600" data-rating="3">★</button>
+                                    <button class="star hover:text-yellow-600" data-rating="4">★</button>
+                                    <button class="star hover:text-yellow-600" data-rating="5">★</button>
+                                </div>
+                                <textarea class="mt-2 w-full border-gray-300 rounded-lg p-2" placeholder="Leave your feedback here..."></textarea>
+                                <button onclick="submitFeedback(${event.id}, this)" class="bg-blue-600 text-white py-2 px-4 rounded-md mt-2 hover:bg-blue-700">Submit Feedback</button>
+                            </div>
+                        `;
+                        eventList.appendChild(eventItem);
+                    });
+                } else {
+                    console.error("Expected an array but got:", data.events);
+                }
+            } catch (error) {
+                console.error("Error loading events:", error);
+            }
+        }
+
+        // Toggle feedback form visibility
+        function toggleFeedbackForm(button) {
+            const feedbackForm = button.nextElementSibling;
+            feedbackForm.classList.toggle('hidden');
+            button.textContent = feedbackForm.classList.contains('hidden') ? 'Leave a Feedback' : 'Cancel Feedback';
+        }
+
+        // Submit feedback for an event
+        async function submitFeedback(eventId, button) {
+            const feedbackForm = button.closest('.feedback-form');
+            const rating = feedbackForm.querySelector('.star.selected')?.dataset.rating;
+            const comment = feedbackForm.querySelector('textarea').value;
+
+            if (!rating) {
+                alert("Please select a rating.");
+                return;
+            }
+
+            try {
+                const response = await fetch(`http://127.0.0.1:8000/api/events/${eventId}/feedback`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    },
+                    body: JSON.stringify({ rating, comment })
+                });
+
+                if (response.ok) {
+                    alert("Feedback submitted successfully!");
+                    feedbackForm.classList.add('hidden'); // Hide form after submission
+                    loadUserEvents(); // Reload the event list without a full page refresh
+                } else {
+                    alert("Failed to submit feedback.");
+                }
+            } catch (error) {
+                console.error("Error submitting feedback:", error);
+            }
+        }
+
+        // Select a star rating
+        document.addEventListener('click', (e) => {
+            if (e.target.classList.contains('star')) {
+                const stars = e.target.parentElement.querySelectorAll('.star');
+                stars.forEach(star => star.classList.remove('selected'));
+                e.target.classList.add('selected');
+            }
+        });
+
+        // Load events when the page loads
+        loadUserEvents();
+    </script>
+</body>
+</html>
